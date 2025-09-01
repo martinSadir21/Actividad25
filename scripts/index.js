@@ -1,65 +1,123 @@
-// Esta es la base de datos de nuestros usuarios
+// "base de datos" que nos dieron (solo para la práctica)
 const baseDeDatos = {
   usuarios: [
-    {
-      id: 1,
-      name: "Steve Jobs",
-      email: "steve@jobs.com",
-      password: "Steve123",
-    },
-    {
-      id: 2,
-      name: "Ervin Howell",
-      email: "shanna@melissa.tv",
-      password: "Ervin345",
-    },
-    {
-      id: 3,
-      name: "Clementine Bauch",
-      email: "nathan@yesenia.net",
-      password: "Floppy39876",
-    },
-    {
-      id: 4,
-      name: "Patricia Lebsack",
-      email: "julianne.oconner@kory.org",
-      password: "MysuperPassword345",
-    },
+    { id: 1, name: "Steve Jobs", email: "steve@jobs.com", password: "Steve123" },
+    { id: 2, name: "Ervin Howell", email: "shanna@melissa.tv", password: "Ervin345" },
+    { id: 3, name: "Clementine Bauch", email: "nathan@yesenia.net", password: "Floppy39876" },
+    { id: 4, name: "Patricia Lebsack", email: "julianne.oconner@kory.org", password: "MysuperPassword345" },
   ],
 };
 
-// ACTIVIDAD
+// agarro todo lo que necesito del html
+const emailInput = document.querySelector("#email-input");
+const passInput = document.querySelector("#password-input");
+const loginBtn = document.querySelector(".login-btn");
+const loader = document.querySelector("#loader");
+const errorBox = document.querySelector("#error-container");
+const main = document.querySelector("main");
+const form = document.querySelector("form");
 
-// Paso a paso:
+// validación simple de email
+function esEmailValido(valor) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor);
+}
 
-// 1) Al momento de que la persona inicia sesión, si las validaciones que ya tenemos implementadas
-// han sido exitosas, deberemos almacenar la información del usuario en el LocalStorage.
+// simulo que el server tarda
+function esperar(ms) {
+  return new Promise((res) => setTimeout(res, ms));
+}
 
-// 2) Al mensaje de bienvenida que ya teníamos implementado, deberemos agregarle el nombre de la
-// persona y un botón de "Cerrar Sesión".
+// busco usuario en la "bd" por email y pass
+function buscarUsuario(email, pass) {
+  return baseDeDatos.usuarios.find(u => u.email === email && u.password === pass);
+}
 
-// 3) Una vez iniciada la sesión, la misma se deberá mantener en ese estado para el caso de que la persona
-// recargue la página. Para ello, deberás validar si existe información del usuario al momento en
-// que se produce la carga de la página, y en base a dicha condción decidir que elementos mostrar.
+// guardo en localStorage SOLO lo necesario
+function guardarSesion(user) {
+  const limpio = { id: user.id, name: user.name, email: user.email };
+  localStorage.setItem("usuario", JSON.stringify(limpio));
+}
 
-// 3) Para el caso de que la persona haga click en el botón "Cerrar Sesión", se deberá eliminar
-// la información del usuario, mostrar un mensaje indicando que se ha cerrado la sesión, y recargar
-// la página para mostrar nuevamente el formulario de login.
+// leo usuario guardado (si hay)
+function leerSesion() {
+  const raw = localStorage.getItem("usuario");
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
 
-/* 
-TIPS:
-  - Para lograr los objetivos de este ejercicio, deberás valerte de algunos eventos y métodos que vimos en
-    las clases anteriores. Te invitamos a que revises los recursos en caso de que tengas dudas, ya que allí
-    encontrarás todas las respuestas que necesitas para completar la actividad.
+// limpio sesión
+function borrarSesion() {
+  localStorage.removeItem("usuario");
+}
 
-  - Recuerda que puedes seleccionar y manipular los elementos del archivo index.html, usando los
-    recursos que Javascript te ofrece para ello. Además, en el archivo styles.css tiene algunas clases y 
-    estilos predefinidos para ayudarte a completar la actividad.
+// armo la pantalla de bienvenida con el botón de cerrar sesión
+function renderBienvenida(nombre) {
+  main.innerHTML = `
+    <h1>Bienvenido al sitio 😀</h1>
+    <p>Hola ${nombre}</p>
+    <button id="logout-btn" class="login-btn" type="button">Cerrar sesión</button>
+  `;
 
-  - Al momento de guardar información del usuario en el navegador, recuerda que debemos almacenar solo la 
-    información necesaria, y EN NINGUN CASO DEBEMOS GUARDAR LA CONTRASEÑA. Por ello, deberás seleccionar y
-    separar la información que tienes que almacenar, a partir del objeto que contiene la información del 
-    usuario.
+  const logoutBtn = document.querySelector("#logout-btn");
+  logoutBtn.addEventListener("click", () => {
+    // borro todo, aviso y recargo para volver al form
+    borrarSesion();
+    alert("Sesión cerrada correctamente.");
+    location.reload();
+  });
+}
 
-   ¡Manos a la obra!
- */
+// muestro/oculto loader y deshabilito botón mientras "carga"
+function setCargando(on) {
+  if (on) {
+    loader.classList.remove("hidden");
+    loginBtn.disabled = true;
+  } else {
+    loader.classList.add("hidden");
+    loginBtn.disabled = false;
+  }
+}
+
+// al cargar la página, si ya estaba logueado, muestro directo la bienvenida
+window.addEventListener("DOMContentLoaded", () => {
+  const sesion = leerSesion();
+  if (sesion) {
+    renderBienvenida(sesion.name);
+  }
+});
+
+// click en "Inciar sesión"
+loginBtn.addEventListener("click", async () => {
+  // limpio errores viejos
+  errorBox.textContent = "";
+  errorBox.classList.add("hidden");
+
+  const email = emailInput.value.trim();
+  const pass = passInput.value;
+
+  // validaciones básicas
+  if (!esEmailValido(email) || pass.length < 5) {
+    errorBox.textContent = "Alguno de los datos ingresados son incorrectos";
+    errorBox.classList.remove("hidden");
+    return;
+  }
+
+  // muestro "Iniciando Sesión..." y simulo 3s
+  setCargando(true);
+  await esperar(3000);
+
+  // chequeo credenciales con la "bd"
+  const user = buscarUsuario(email, pass);
+
+  if (!user) {
+    errorBox.textContent = "Alguno de los datos ingresados son incorrectos";
+    errorBox.classList.remove("hidden");
+    setCargando(false);
+    return;
+  }
+
+  // si está ok, guardo sesión (sin password) y muestro bienvenida
+  guardarSesion(user);
+  renderBienvenida(user.name);
+  setCargando(false);
+});
